@@ -169,3 +169,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# installer
+.build
+build/
+.dist
+dist/
+setup.py
+final_output.zip
