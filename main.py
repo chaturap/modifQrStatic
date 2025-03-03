@@ -286,7 +286,7 @@ def process_images_hapusimages(excel_path, folder_path, overlay_image_path, outp
 # 3 Modify QR
 def calculate_crc(data: bytes, polynomial: int = 0x1021, initial_value: int = 0xFFFF) -> str:
     """
-    Menghitung nilai CRC-16 dengan polinomial tertentu.
+    Menghitung nilai CRC-16 dengan polinomial tertentu. https://crccalc.com/ CRC-16/IBM-3740
 
     :param data: Data input dalam bentuk bytes.
     :param polynomial: Polinomial CRC yang digunakan (default: 0x1021).
@@ -318,7 +318,8 @@ def edit_data_after_148th_char_tarif_and_crc(df: pd.DataFrame, data_column: str,
     if data_column in df.columns and tarif_column in df.columns:
         df[data_column] = df.apply(
             lambda row: (
-                row[data_column][:148] + "5404" + str(row[tarif_column]) + row[data_column][148:]
+                # row[data_column][:148] + "5404" 
+                row[data_column][:10] + "12" + row[data_column][12:148] + "5404" + str(row[tarif_column]) + row[data_column][148:]
             )[:-4] if len(row[data_column]) > 4 else row[data_column] + "5404" + str(row[tarif_column]),
             axis=1
         )
@@ -482,8 +483,9 @@ def menu_utama():
         print("3. Modify QR")
         print("4. Attach QR to Image")
         print("5. Zip")
-        print("6. Readme")
-        print("7. Exit")
+        print("6. Parsing")
+        print("7. Readme")
+        print("8. Exit")
 
         # Ambil input dari pengguna
         pilihan = input("Pilih opsi (1-6): ")
@@ -569,6 +571,8 @@ def menu_utama():
         elif pilihan == '6':
              show_about()
         elif pilihan == '7':
+             show_about()
+        elif pilihan == '8':
             print("Keluar dari program.")
             break  # Keluar dari loop, program selesai
 

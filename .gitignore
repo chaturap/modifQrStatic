@@ -177,3 +177,4 @@ build/
 dist/
 setup.py
 final_output.zip
+*A01.zip
