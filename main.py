@@ -475,6 +475,71 @@ def show_about():
 
 #############################################################################
 
+def parse_tlv(data):
+    parsed_data = []
+    index = 0
+    while index < len(data):
+        tag = data[index:index+2]  # Tag terdiri dari 2 digit
+        length = int(data[index+2:index+4])  # Panjang terdiri dari 2 digit
+        value = data[index+4:index+4+length]  # Ambil nilai berdasarkan panjang
+        parsed_data.append({"tag": tag, "length": length, "value": value})
+        index += 4 + length
+    return parsed_data
+
+# Membaca file Excel dan mengambil kolom "qr string"
+def read_excel_file(file_path):
+    df = pd.read_excel(file_path)
+    if "qrstring" not in df.columns:
+        raise ValueError("Kolom 'qrstring' tidak ditemukan dalam file Excel.")
+    return df["qrstring"].dropna().tolist()
+
+def parse_tlv(data):
+    parsed_data = []
+    index = 0
+    while index < len(data):
+        tag = data[index:index+2]  # Tag terdiri dari 2 digit
+        length = int(data[index+2:index+4])  # Panjang terdiri dari 2 digit
+        value = data[index+4:index+4+length]  # Ambil nilai berdasarkan panjang
+        parsed_data.append({"tag": tag, "length": length, "value": value})
+        index += 4 + length
+    return parsed_data
+
+# Membaca file Excel dan mengambil kolom "qr string"
+def read_excel_file(file_path):
+    df = pd.read_excel(file_path)
+    if "qrstring" not in df.columns:
+        raise ValueError("Kolom 'qrstring' tidak ditemukan dalam file Excel.")
+    return df["qrstring"].dropna().tolist()
+
+# Membaca konfigurasi dari file config.txt
+def read_config_file(file_path):
+    modifications = []
+    with open(file_path, "r") as file:
+        for line in file:
+            parts = line.strip().split("|")
+            if parts[0] == "+":
+                modifications.append({"action": "+", "tag": parts[1], "length": parts[2], "value": parts[3]})
+            elif parts[0] == "-":
+                modifications.append({"action": "-", "tag": parts[1]})
+    return modifications
+
+# Memodifikasi QR string berdasarkan konfigurasi
+def modify_qr_string(qr_string, modifications):
+    parsed = parse_tlv(qr_string)
+    parsed_dict = {item["tag"]: item for item in parsed}
+    
+    for mod in modifications:
+        if mod["action"] == "-":
+            parsed_dict.pop(mod["tag"], None)
+        elif mod["action"] == "+":
+            parsed_dict[mod["tag"]] = {"tag": mod["tag"], "length": int(mod["length"]), "value": mod["value"]}
+    
+    sorted_tags = sorted(parsed_dict.keys())
+    modified_qr = "".join(f"{parsed_dict[tag]['tag']}{parsed_dict[tag]['length']:02}{parsed_dict[tag]['value']}" for tag in sorted_tags)
+    return modified_qr
+
+########################
+
 def menu_utama():
     while True:  # Looping agar menu terus muncul setelah pilihan dieksekusi
         print("\nMenu Utama:")
@@ -484,8 +549,9 @@ def menu_utama():
         print("4. Attach QR to Image")
         print("5. Zip")
         print("6. Parsing")
-        print("7. Readme")
-        print("8. Exit")
+        print("7. Modifikasi QR String")
+        print("8. Readme")
+        print("9. Exit")
 
         # Ambil input dari pengguna
         pilihan = input("Pilih opsi (1-6): ")
@@ -569,10 +635,34 @@ def menu_utama():
         elif pilihan == '5':
              batch_zip_files()
         elif pilihan == '6':
-             show_about()
+             file_path = "listQr.xlsx"
+             qr_strings = read_excel_file(file_path)
+            
+             for qr in qr_strings:
+                parsed_data = parse_tlv(qr)  # Menggunakan langsung string sebagai input
+                
+                print(f"QR String: {qr}")
+                for item in parsed_data:
+                    print(f"Tag: {item['tag']}, Length: {item['length']}, Value: {item['value']}")
+                print("-")
         elif pilihan == '7':
-             show_about()
+             file_path = "listQr.xlsx"
+             qr_strings = read_excel_file(file_path)
+             config_path = "config.txt"
+             modifications = read_config_file(config_path)
+            
+             for qr in qr_strings:
+                modified_qr = modify_qr_string(qr, modifications)
+                print(f"Original QR: {qr}")
+                print(f"Modified QR: {modified_qr}")
+                parsed_data = parse_tlv(modified_qr)
+                for item in parsed_data:
+                    print(f"Tag: {item['tag']}, Length: {item['length']}, Value: {item['value']}")
+                print("-")
+                print("-")
         elif pilihan == '8':
+             show_about()
+        elif pilihan == '9':
             print("Keluar dari program.")
             break  # Keluar dari loop, program selesai
 
