@@ -711,4 +711,8 @@ def menu_utama():
 
 # Panggil menu utama
 if __name__ == "__main__":
+<<<<<<< HEAD
     menu_utama()
+=======
+    menu_utama()
+>>>>>>> 9917ff74dda5dff7fe7bbb8333eb6919f8adeaa1

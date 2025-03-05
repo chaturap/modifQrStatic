@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 +|54||$tarif
+=======
++|54||$tarif
+>>>>>>> 9917ff74dda5dff7fe7bbb8333eb6919f8adeaa1
