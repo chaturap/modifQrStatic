@@ -43,7 +43,6 @@ def extract_nested_zip(file_path, output_folder):
                     extract_nested_zip(nested_file_path, output_folder)
 
 # Fungsi Proses Ekstraksi ZIP
-# Fungsi Proses Ekstraksi ZIP
 def process_zip_file(zip_file_name):
     zip_file_path = os.path.join(INPUT_FOLDER, zip_file_name)
     output_directory = os.path.join(OUTPUT_FOLDER, os.path.splitext(zip_file_name)[0])
@@ -285,6 +284,7 @@ def process_images_hapusimages(excel_path, folder_path, overlay_image_path, outp
 #############################################################################
 # 3 Modify QR
 def calculate_crc(data: bytes, polynomial: int = 0x1021, initial_value: int = 0xFFFF) -> str:
+#def calculate_crc(data: str, polynomial: int = 0x1021, initial_value: int = 0xFFFF) -> str:
     """
     Menghitung nilai CRC-16 dengan polinomial tertentu. https://crccalc.com/ CRC-16/IBM-3740
 
@@ -305,6 +305,20 @@ def calculate_crc(data: bytes, polynomial: int = 0x1021, initial_value: int = 0x
             crc &= 0xFFFF  # Pastikan CRC tetap dalam 16-bit
 
     return f"{crc:04X}"  # Mengembalikan CRC dalam 4 digit hexadecimal
+
+def calculate_crc2(data: str, polynomial: int = 0x1021, initial_value: int = 0xFFFF) -> str:
+    crc = initial_value
+    data = data[:-4]  # Hilangkan 4 digit terakhir sebelum menghitung CRC
+    data_bytes = data.encode("utf-8")  # Konversi string ke bytes
+    for byte in data_bytes:
+        crc ^= (byte << 8)
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = (crc << 1) ^ polynomial
+            else:
+                crc <<= 1
+            crc &= 0xFFFF
+    return f"{crc:04X}"
 
 def edit_data_after_148th_char_tarif_and_crc(df: pd.DataFrame, data_column: str, tarif_column: str):
     """
@@ -377,7 +391,8 @@ def process_images(excel_file, image_folder, output_folder, config):
 
     for _, row in df.iterrows():
         filename = row['filename']
-        qrstring = row['qrstring']
+        #qrstring = row['qrstring']
+        qrstring = row['modifiedQr']
 
         image_path = os.path.join(image_folder, filename)
         output_path = os.path.join(output_folder, filename)
@@ -456,19 +471,32 @@ def zip_final_file(final_folder):
 def show_about():
     """Display information about the application."""
     about_text = """
-    QR Code Attachment Tool
+    QR Static Modifier Tool
     ------------------------
-    This application attaches QR codes to images based on data provided in an Excel file.
+    This application modifier tag and attaches QR codes to images based on data provided in an Excel file.
 
     Usage:
-    1. Letakkan semua file gambar dalam format zip dalam folder zip, pilih menu 1, aplikasi akan melakukan unzip file dan membuat file excel dengan nama listQr.xlsx yang berisi field filename,qrstring dan tarif
-       Tarif di di isi dengan cara maping conten string code dengan excel dari list Aino , contoh KEMENHUB SBY KHUSUS tarif 2000
-    2. hapus QR existing dengan cara overlay gambar QR dengan kotak putih
-    3. Modify string QR pada Excel dengan menambahkan tag 54 dan set amount sesuai maping
-    4. Tempel QRcode yang baru pada template image qr yang lama (qr kosong), selain gambar qr conten lain tidak diubah 
-    5. Lakukan kembali proses zip dan ambil hasilnya di folder final_output.zip
+    1. Letakkan semua file gambar dalam format zip dalam folder zip atau folder lainnya yang berada selevel dengan file main.exe, 
+    2. menu "1. Unzip File dan Simpan String QR serta nama file ke  File Excel", aplikasi akan melakukan unzip file dan membuat file excel dengan nama listQr.xlsx yang berisi field filename dan qrstring dan tarif
+    3. menu "2. Create Template PTEN without QR image" hapus QR existing dengan cara overlay gambar QR dengan kotak putih
+    4. Menu "3. Modify QR mode Khusus Tarif" Modify QR mode Khusus Tarif, Tarif di isi dengan cara maping conten string code dengan excel dari list Merchant , contoh KEMENHUB SBY KHUSUS tarif 2000
+    5. Menu "4. Modify QR String Dynamic by Config" 
+       - Seting file config yang berada di /config/config.txt dengan format pie delimiter yang terdiri dari 4 kolom 
+       kolom pertama flaging "+" untuk tambah dan "-" untuk menghapus
+       kolom kedua "tag" yang akan di tambahkan atau dihapus
+       kolom ketiga "length" panjang karakter
+       kolom ke empat "value" nilai dari tag yang akan di tambahkan
+       apabila flaging / kolom paling depan berisi "-" maka kolom berikutnya akan di abaikan
+         contoh: 
+         +|54|4|2500 --> menambahkan tag 54 dengan length 4 digit dengan value 2500, atau jika 
+         +|54||$tarif --> menambahkan tag 54 dengan mengambil value parameter tarif pada file listQr.xlsx, untuk nama parameter bisa diisi apa saja namun harus di tambahkan juga di file excel, untuk length pada config tidak perlu diisi karena akan menghitung length pada value di excel
+         -|54|| --> menghapus tag 54
+    6. Menu "5. Attach QR Modified to Template PTEN" attach QRcode yang sudah di modifikasi pada template image qr yang lama (qr kosong), selain gambar qr conten lain tidak diubah 
+    7. Menu "6. Zip Image QR Modified" melakukan proses Zip untuk gambar qr yang sudah di modifikasi
+    8. Menu "7. Readme" Petunjuk pemakaian aplikasi
+    9. Menu "8. Exit" keluar aplikasi
 
-    Developed by: masCha
+    Developed by: masCha https://github.com/chaturap/modifQrStatic
     """
     print(about_text)
 
@@ -489,9 +517,9 @@ def parse_tlv(data):
 # Membaca file Excel dan mengambil kolom "qr string"
 def read_excel_file(file_path):
     df = pd.read_excel(file_path)
-    if "qrstring" not in df.columns:
-        raise ValueError("Kolom 'qrstring' tidak ditemukan dalam file Excel.")
-    return df["qrstring"].dropna().tolist()
+    if "qrstring" not in df.columns or "tarif" not in df.columns:
+        raise ValueError("Kolom yang diperlukan tidak ditemukan dalam file Excel.")
+    return df[["qrstring", "tarif"]].dropna()
 
 def parse_tlv(data):
     parsed_data = []
@@ -507,9 +535,7 @@ def parse_tlv(data):
 # Membaca file Excel dan mengambil kolom "qr string"
 def read_excel_file(file_path):
     df = pd.read_excel(file_path)
-    if "qrstring" not in df.columns:
-        raise ValueError("Kolom 'qrstring' tidak ditemukan dalam file Excel.")
-    return df["qrstring"].dropna().tolist()
+    return df.dropna()
 
 # Membaca konfigurasi dari file config.txt
 def read_config_file(file_path):
@@ -524,7 +550,7 @@ def read_config_file(file_path):
     return modifications
 
 # Memodifikasi QR string berdasarkan konfigurasi
-def modify_qr_string(qr_string, modifications):
+def modify_qr_string(qr_string, row, modifications):
     parsed = parse_tlv(qr_string)
     parsed_dict = {item["tag"]: item for item in parsed}
     
@@ -532,29 +558,39 @@ def modify_qr_string(qr_string, modifications):
         if mod["action"] == "-":
             parsed_dict.pop(mod["tag"], None)
         elif mod["action"] == "+":
-            parsed_dict[mod["tag"]] = {"tag": mod["tag"], "length": int(mod["length"]), "value": mod["value"]}
+            value = mod["value"]
+            if value.startswith("$"):
+                column_name = value[1:]  # Ambil nama kolom setelah $
+                if column_name in row:
+                    value = str(row[column_name])  # Ambil nilai dari kolom
+                else:
+                    print(f"Peringatan: Kolom '{column_name}' tidak ditemukan dalam file Excel.")
+                    continue
+            parsed_dict[mod["tag"]] = {"tag": mod["tag"], "length": len(value), "value": value}
     
     sorted_tags = sorted(parsed_dict.keys())
     modified_qr = "".join(f"{parsed_dict[tag]['tag']}{parsed_dict[tag]['length']:02}{parsed_dict[tag]['value']}" for tag in sorted_tags)
-    return modified_qr
+    #modified_qr = modified_qr[:-4] + calculate_crc2(modified_qr[:-4])  # Ganti 4 digit terakhir dengan CRC baru
+    modified_qr = modified_qr[:-4] + calculate_crc2(modified_qr)  # Ganti 4 digit terakhir dengan CRC baru
+    
+    return modified_qr # parse_tlv(modified_qr)  # Kembalikan QR yang dimodifikasi dan hasil parsing
 
 ########################
 
 def menu_utama():
     while True:  # Looping agar menu terus muncul setelah pilihan dieksekusi
         print("\nMenu Utama:")
-        print("1. Unzip File dan Simpan String QR ke Excel")
-        print("2. Hapus QR")
-        print("3. Modify QR")
-        print("4. Attach QR to Image")
-        print("5. Zip")
-        print("6. Parsing")
-        print("7. Modifikasi QR String")
-        print("8. Readme")
-        print("9. Exit")
+        print("1. Unzip File dan Simpan String QR serta nama file ke  File Excel")
+        print("2. Create Template PTEN without QR image")
+        print("3. Modify QR mode Khusus Tarif")
+        print("4. Modify QR String Dynamic by Config")
+        print("5. Attach QR Modified to Template PTEN")
+        print("6. Zip Image QR Modified")#print("6. Parsing")
+        print("7. Readme")
+        print("8. Exit")
 
         # Ambil input dari pengguna
-        pilihan = input("Pilih opsi (1-6): ")
+        pilihan = input("Pilih opsi (1-8): ")
 
         # Panggil fungsi sesuai dengan pilihan pengguna
         if pilihan == '1':
@@ -562,19 +598,18 @@ def menu_utama():
             print("Unzip File")
             folder_path = input("Masukkan path folder: ").strip()
             batch_unzip(folder_path)
+            print("Processing complete. Check the output folder for results on folder "+folder_path)
         elif pilihan == '2':
             print("Hapus QR.")
             excel_path = "listQr.xlsx"  # Path to the Excel file
             folder_path = "unzipped_files"  # Folder containing base images
             overlay_image_path = "overlay.png"  # Path to the overlay image
-            output_folder = "qrModified"  # Folder to save output images
+            output_folder = "qrBlank"  # Folder to save output images
             config_path = "config/config.json"  # Path to the configuration file
 
-            #process_images(excel_path, folder_path, overlay_image_path, output_folder, config_path)
-            #process_images(excel_file, image_folder, output_folder, config)
-            #process_images(excel_path, folder_path, output_folder, config_path)
+           
             process_images_hapusimages(excel_path, folder_path, overlay_image_path, output_folder, config_path)
-
+            print("Processing complete. Check the output folder for results on folder "+folder_path)
             
         elif pilihan == '3':
             print("Modify QR")
@@ -606,12 +641,13 @@ def menu_utama():
                     print(f"Hasil CRC telah disimpan ke {output_file}")
             except Exception as e:
                 print(f"Terjadi kesalahan: {e}")
-        elif pilihan == '4':
+        elif pilihan == '5':
             print("Attach QR to ASPI Format.")
             # Static paths
-            excel_file = "output_crc.xlsx"
-            image_folder = "qrModified"
-            output_folder = "qrModifiedOutput"
+            #excel_file = "output_crc.xlsx"
+            excel_file = "listQr.xlsx"
+            image_folder = "qrBlank"
+            output_folder = "qrModified"
 
             # Load configuration
             config_file = "config/config.json"
@@ -631,10 +667,10 @@ def menu_utama():
                 continue
 
             process_images(excel_file, image_folder, output_folder, config)
-            print("Processing complete. Check the output folder for results.")
-        elif pilihan == '5':
-             batch_zip_files()
+            print("Processing complete. Check the output folder for results on folder "+output_folder)
         elif pilihan == '6':
+             batch_zip_files()
+        elif pilihan == '9': #parsing
              file_path = "listQr.xlsx"
              qr_strings = read_excel_file(file_path)
             
@@ -645,25 +681,32 @@ def menu_utama():
                 for item in parsed_data:
                     print(f"Tag: {item['tag']}, Length: {item['length']}, Value: {item['value']}")
                 print("-")
-        elif pilihan == '7':
+        elif pilihan == '4':
              file_path = "listQr.xlsx"
-             qr_strings = read_excel_file(file_path)
-             config_path = "config.txt"
+             df = read_excel_file(file_path)
+             config_path = "config/config.txt"
              modifications = read_config_file(config_path)
-            
-             for qr in qr_strings:
-                modified_qr = modify_qr_string(qr, modifications)
-                print(f"Original QR: {qr}")
-                print(f"Modified QR: {modified_qr}")
-                parsed_data = parse_tlv(modified_qr)
-                for item in parsed_data:
+
+             modified_qr_list = []
+             for _, row in df.iterrows():
+                modified_qr = modify_qr_string(row["qrstring"], row, modifications)
+                modified_qr_list.append(modified_qr)
+                print(f"Modified QR String: {modified_qr}")
+                parsed_modified = parse_tlv(modified_qr)
+                for item in parsed_modified:
                     print(f"Tag: {item['tag']}, Length: {item['length']}, Value: {item['value']}")
-                print("-")
-                print("-")
-        elif pilihan == '8':
+
+             df["modifiedQr"] = modified_qr_list
+             try:
+                df.to_excel(file_path, index=False)
+                print("Hasil modifikasi QR telah disimpan dalam listQr.xlsx.")
+             except PermissionError:
+                print("Error: Tidak dapat menyimpan file. File Excel mungkin masih terbuka. Tutup file dan coba lagi.")
+                
+        elif pilihan == '7':
              show_about()
-        elif pilihan == '9':
-            print("Keluar dari program.")
+        elif pilihan == '8':
+            print("Keluar dari program., Terimakasih Assalamu'alaykum...")
             break  # Keluar dari loop, program selesai
 
 # Panggil menu utama
