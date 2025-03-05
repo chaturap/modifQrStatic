@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+#folder
+zip - copy
+qris static teman bus AINO with amount.zip
+
 # Distribution / packaging
 .Python
 build/
